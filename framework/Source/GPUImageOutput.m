@@ -37,12 +37,20 @@ void runSynchronouslyOnVideoProcessingQueue(void (^block)(void))
 #else
 	if (dispatch_get_specific([GPUImageContext contextKey]))
 #endif
-	{
-		block();
-	}else
-	{
-		dispatch_sync(videoProcessingQueue, block);
-	}
+    {
+        block();
+        return;
+    }
+    
+    NSConditionLock *lock = [[NSConditionLock alloc] initWithCondition:NO];
+    
+    runAsynchronouslyOnVideoProcessingQueue(^{
+        block();
+        [lock lock];
+        [lock unlockWithCondition:YES];
+    });
+    [lock lockWhenCondition:YES];
+    [lock unlock];
 }
 
 void runAsynchronouslyOnVideoProcessingQueue(void (^block)(void))
